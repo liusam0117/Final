@@ -1,7 +1,8 @@
 #include"mbed.h"
 #include"bbcar.h"
 
-
+//I still try to promote the Xbee 
+//and I let my friend run the code it does work
 BufferedSerial pc(USBTX,USBRX); //tx,rx
 BufferedSerial uart(D1,D0); //tx,rx
 Ticker servo_ticker;
@@ -28,7 +29,7 @@ int x_1, x_2, y_1, y_2;
 int TX, TY, TZ, RX, RY, RZ;
 int coun = 0;
 int dataA = 0, dataL = 0;
-int order;
+int order; //for different step of function
 float val;
 
 int total_speed = 90;
@@ -47,33 +48,10 @@ void Move() {
    int predataL = 0, predataA = 0;
    char buf[30];
    sprintf(buf, "start\r\n");
-   xbee.write(buf, 7);
-   sprintf(buf, "follow the line\r\n");
-   xbee.write(buf, 17);
+   
    while(1) {
-      while(predataL != dataL && order == 1){
-         predataL = dataL;
-         printf("x1: %d, x2: %d, y1: %d, y2: %d\n", x_1, x_2, y_1, y_2);
-         printf ("dis: %f\n", val);
-         if (val > 20) {
-         double ratio = (x_1 + x_2) / 300.0;
-         double left_speed = total_speed * ratio;
-         double right_speed = total_speed - left_speed;
-         printf("left: %f, right: %f\n", left_speed, right_speed);
-         car.go(left_speed, right_speed);
-         } else {
-            car.stop();
-            sprintf(buf, "follow finish\r\n");
-            xbee.write(buf, 15);
-            sprintf(buf, "circle around the barrier\r\n");
-            xbee.write(buf, 27);
-            order = 2;
-            ThisThread::sleep_for(800ms);
-         }
-         ThisThread::sleep_for(50ms);
-      } 
-      if (order == 2) {
-         car.turn(60, 1);
+      while(order == 1){ // gostraight
+         car.turn(60, 1); 
          for (int i = 0; i < 10; i ++) {
             ThisThread::sleep_for(100ms);
          }
@@ -102,8 +80,8 @@ void Move() {
          xbee.write(buf, 24);
          order = 3;
          ThisThread::sleep_for(500ms);
-      }
-      while (predataA != dataA && order == 3) {
+      } 
+      if (predataA != dataA && order == 2) { // finding apriltag
          predataA = dataA;
          printf("TX: %d, TY: %d, TZ: %d, RX: %d, RY: %d, RZ: %d\n", TX, TY, TZ, RX, RY, RZ);
          double angle = atan(TX *1.0 / TZ) * 54.7;
@@ -121,7 +99,7 @@ void Move() {
          }
          ThisThread::sleep_for(50ms);
       }
-      if (order == 4) {
+      while (order == 3) { //go along the line
          car.turn(60, 1);
          for (int i = 0; i < 10; i ++) {
             ThisThread::sleep_for(100ms);
@@ -133,8 +111,8 @@ void Move() {
          xbee.write(buf, 17);
          order = 5;
          ThisThread::sleep_for(1000ms);
-      } 
-      while(predataL != dataL && order == 5){
+      }
+      if (predataA != dataA && order == 4) { // bump into barrier and stop
          predataL = dataL;
          printf("x1: %d, x2: %d, y1: %d, y2: %d\n", x_1, x_2, y_1, y_2);
          printf ("dis: %f\n", val);
